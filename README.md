@@ -13,7 +13,7 @@ Backend system for the Advanced Computer Networks project programming competitio
 
 1. **Clone and setup**:
 ```bash
-git clone <your-repo>
+git clone github.com/FerRojasChoco/acn_project_backend
 cd acn_project  
 ```
 
