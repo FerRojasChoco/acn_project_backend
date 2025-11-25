@@ -1,5 +1,10 @@
 # ACN Project - Backend
 
+![FastAPI](https://img.shields.io/badge/FastAPI-0.111.0-009688?style=for-the-badge&logo=fastapi)
+![Uvicorn](https://img.shields.io/badge/Uvicorn-ASGI%20Server-ffbe0b?style=for-the-badge&logo=python)
+![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-336791?style=for-the-badge&logo=postgresql)
+
 Backend system for the Advanced Computer Networks project programming competition platform.
 
 ## How to run the project
