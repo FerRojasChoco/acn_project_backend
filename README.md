@@ -85,5 +85,28 @@ acn_project/
 - **Submissions**: user code with status
 
 ## Task checklist  
-- Implemented: initial database setup with automatic db init, user auth, password hashing/security, API structure  
-- TODO: add websocket for real time thingys, leaderboard, submission creation/management endpoints?
+Implemented: 
+- initial database setup with automatic db init, user auth, password hashing/security, API structure  
+- Submission creation
+- Endpoint management (protected endpoints)  
+
+TODO:
+- Leaderboard 
+
+## Test protected endpoints with:
+1. First, get an access token
+``` bash
+curl -X POST "http://127.0.0.1:8000/auth/login" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=user_a&password=a1234"
+```
+You'll get a token like: {"access_token":"eyJ...","token_type":"bearer"}
+
+# 2. Use the token to access protected routes
+``` bash
+curl -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  "http://127.0.0.1:8000/problems/"
+
+curl -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  "http://127.0.0.1:8000/submissions/"
+```
