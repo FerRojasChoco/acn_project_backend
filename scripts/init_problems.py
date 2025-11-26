@@ -1,40 +1,18 @@
+# ============================================
+# FILE: scripts/init_problems.py (NEW)
+# ============================================
 from sqlmodel import Session, select
 from app.core.database import engine
-from app.models import User, Problem
-from app.core.security import get_password_hash
-
-
-def create_initial_users():
-    with Session(engine) as session:
-        existing_user = session.exec(select(User)).first()
-
-        if existing_user:
-            print("users already exists, skipping user creation")
-            return
-
-        users_data = [
-            {"username": "user_a", "password": "a1234"},
-            {"username": "user_b", "password": "b1234"},
-            {"username": "user_c", "password": "c1234"},
-        ]
-
-        for user_data in users_data:
-            hashed_password = get_password_hash(user_data["password"])
-            user = User(username=user_data["username"], password=hashed_password)
-            session.add(user)
-
-        session.commit()
-        print("users successfully created")
+from app.models import Problem
 
 
 def create_initial_problems():
-    """Initialize problems in the database"""
     with Session(engine) as session:
         # Check if problems already exist
         existing_problem = session.exec(select(Problem)).first()
 
         if existing_problem:
-            print("problems already exist, skipping problem creation")
+            print("Problems already exist, skipping problem creation")
             return
 
         problems_data = [
@@ -89,9 +67,8 @@ Hint: You only need to check divisibility up to the square root of n.""",
             session.add(problem)
 
         session.commit()
-        print("problems successfully created")
+        print("Problems successfully created")
 
 
 if __name__ == "__main__":
-    create_initial_users()
     create_initial_problems()
