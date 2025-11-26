@@ -7,6 +7,7 @@ class SubmissionStatus(str, Enum):
     PENDING = "PENDING"
     ACCEPTED = "ACCEPTED"
     WRONG_ANS = "WRONG_ANS"
+    MEM_LIMIT = "MLE"
     RUNTIME_ERR = "RUNTIME_ERR"
     INTERNAL_ERR = "INTERNAL_ERR"
 
@@ -21,7 +22,6 @@ class Problem(SQLModel, table=True):
     problem_title: str = Field(index=True, unique=True, nullable=False)
     problem_description: str = Field(nullable=False)
     starter_code: str = Field(nullable=False)
-    testcases_path: str = Field(nullable=False)
     __tablename__ = "problems"  
 
 class Submission(SQLModel, table=True):
