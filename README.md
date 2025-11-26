@@ -102,7 +102,7 @@ curl -X POST "http://127.0.0.1:8000/auth/login" \
 ```
 You'll get a token like: {"access_token":"eyJ...","token_type":"bearer"}
 
-# 2. Use the token to access protected routes
+2. Use the token to access protected routes
 ``` bash
 curl -H "Authorization: Bearer YOUR_TOKEN_HERE" \
   "http://127.0.0.1:8000/problems/"
