@@ -35,7 +35,9 @@ def classify_traceback(path: str):
         "oom",
     ]
 
-    if any(sig in tb_lower for sig in memory_signatures) or "killed" in tb_lower:
+    # Only consider it MLE if we have explicit memory error keywords
+    # Don't rely solely on "killed" as that could be from time limit
+    if any(sig in tb_lower for sig in memory_signatures):
         return {"status": "MLE"}
 
     lines = tb.strip().splitlines()
@@ -202,16 +204,23 @@ def run_judge(submission_id: int, problem_path: str, code: str, session: Session
                     return_dict["status"] = "XX"
                     all_accepted = False
             else:
-                # Check for errors
-                if meta.get('status') == "XX":
-                    return_dict["status"] = "XX"
-                elif meta.get('status') == "TO":
+                # Non-zero return code - check meta status first
+                meta_status = meta.get('status', '')
+                
+                # Handle time limit exceeded
+                if meta_status == "TO":
                     return_dict["status"] = "TO"
+                    all_accepted = False
+                # Handle internal/sandbox errors
+                elif meta_status == "XX":
+                    return_dict["status"] = "XX"
+                    all_accepted = False
+                # Handle runtime errors and memory limit errors
                 else:
+                    # Check stderr for error details
                     error_result = classify_traceback(f"{ERROR_PATH}{test_file.name}")
                     return_dict.update(error_result)
-                
-                all_accepted = False
+                    all_accepted = False
             
             test_cases.append(return_dict)
             
@@ -292,14 +301,14 @@ async def judge_submission(
             detail=f"Problem directory not found: {problem_path}"
         )
     
-    # Convert to string for the judge function
+    # Convert to string for the judge function - THIS WAS THE BUG!
     problem_path_str = str(problem_path)
     
-    # Run judge in background
+    # Run judge in background - use problem_path_str, not problem_path
     background_tasks.add_task(
         run_judge, 
         submission_id, 
-        problem_path, 
+        problem_path_str,  # Fixed: was passing problem_path (Path object)
         submission.code,
         session
     )
