@@ -8,6 +8,7 @@ class SubmissionStatus(str, Enum):
     ACCEPTED = "ACCEPTED"
     WRONG_ANS = "WRONG_ANS"
     MEM_LIMIT = "MLE"
+    TIME_LIMIT = "TLE"
     RUNTIME_ERR = "RUNTIME_ERR"
     INTERNAL_ERR = "INTERNAL_ERR"
 
@@ -30,5 +31,6 @@ class Submission(SQLModel, table=True):
     problem_id: int = Field(foreign_key="problems.problem_id", index=True, nullable=False)  
     code: str = Field(nullable=False)
     status: SubmissionStatus = Field(default=SubmissionStatus.PENDING, nullable=False)
+    result: Optional[str] = Field(default=None, nullable=True)  # Added for detailed results
     submitted_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
-    __tablename__ = "submissions"
+    __tablename__ = "submissions"   

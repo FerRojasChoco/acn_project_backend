@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/box/run.py", line 9, in <module>
+    result = solve(n)
+             ^^^^^^^^
+  File "/box/solution.py", line 6, in solve
+    a.append("x" * 10_000_000)
+             ~~~~^~~~~~~~~~~~
+MemoryError
