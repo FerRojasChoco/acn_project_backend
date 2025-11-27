@@ -11,3 +11,11 @@ wheels/
 
 # Environment variables
 .env
+
+# Meta/Output/Error files
+problems/problem1/error/*.txt
+problems/problem1/meta/*.txt
+problems/problem1/output/*.txt
+problems/problem2/error/*.txt
+problems/problem2/meta/*.txt
+problems/problem2/output/*.txt
