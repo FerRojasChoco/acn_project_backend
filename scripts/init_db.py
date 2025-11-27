@@ -81,6 +81,7 @@ Hint: You only need to check divisibility up to the square root of n.""",
                 "starter_code": """def solve(n):
     return True""",
                 "testcases_path": "problem2/input/",
+                "max_score": 100
             },
         ]
 

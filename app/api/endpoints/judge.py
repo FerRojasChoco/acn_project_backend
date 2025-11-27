@@ -3,8 +3,10 @@ from sqlmodel import Session, select
 from app.core.database import get_session
 from app.core.security import get_current_user
 from app.core.config import settings
-from app.models import Submission, User, SubmissionStatus, Problem
+from app.core.leaderboard import leaderboard_service
+from app.models import Submission, User, SubmissionStatus, Problem, UserScore
 from datetime import datetime
+from typing import List
 import subprocess
 import os
 import tempfile
@@ -236,35 +238,71 @@ def run_judge(submission_id: int, problem_path: str, code: str, session: Session
         # Final sandbox cleanup
         subprocess.run(['isolate', '--box-id=0', '--cleanup'], 
                      capture_output=True, check=False)
-    
-    # Update submission in database
-    submission = session.get(Submission, submission_id)
-    if submission:
-        if all_accepted and test_cases:
-            submission.status = SubmissionStatus.ACCEPTED
-            submission.result = f"All {len(test_cases)} test cases passed"
-        elif test_cases:
-            # Set status based on first failure
-            first_failure = next((tc for tc in test_cases if tc["status"] != "AC"), None)
-            if first_failure:
-                status_map = {
-                    "WA": SubmissionStatus.WRONG_ANS,
-                    "TO": SubmissionStatus.TIME_LIMIT,
-                    "MLE": SubmissionStatus.MEM_LIMIT,
-                    "RE": SubmissionStatus.RUNTIME_ERR,
-                    "XX": SubmissionStatus.INTERNAL_ERR
-                }
-                submission.status = status_map.get(first_failure["status"], 
-                                                   SubmissionStatus.RUNTIME_ERR)
-                submission.result = first_failure.get("traceback", 
-                                   f"Failed on test case with status {first_failure['status']}")
-        else:
-            submission.status = SubmissionStatus.INTERNAL_ERR
-            submission.result = "No test cases found"
-        
-        session.commit()
-        session.refresh(submission)
+  #~~~ UPDATED SECTION ~~~#
+  # Score calculation and leaderboard updates
 
+    # Get submission and problem details
+    submission = session.get(Submission, submission_id)
+    if not submission:
+        logger.error(f"Submission {submission_id} not found in database")
+        return
+    
+    # Get problem to determine max score
+    problem = session.get(Problem, submission.problem_id)
+    max_score = problem.max_score if problem else 100
+    
+    # Calculate score based on test results
+    score = calculate_scores(test_cases, max_score)
+    
+    # Update submission with score and status
+    submission.score = score  # Add the score field
+    
+    if all_accepted and test_cases:
+        submission.status = SubmissionStatus.ACCEPTED
+        submission.result = f"All {len(test_cases)} test cases passed - Score: {score}/{max_score}"
+    elif test_cases:
+        # Set status based on first failure
+        first_failure = next((tc for tc in test_cases if tc["status"] != "AC"), None)
+        if first_failure:
+            status_map = {
+                "WA": SubmissionStatus.WRONG_ANS,
+                "TO": SubmissionStatus.TIME_LIMIT,
+                "MLE": SubmissionStatus.MEM_LIMIT,
+                "RE": SubmissionStatus.RUNTIME_ERR,
+                "XX": SubmissionStatus.INTERNAL_ERR
+            }
+            submission.status = status_map.get(first_failure["status"], SubmissionStatus.RUNTIME_ERR)
+            submission.result = first_failure.get("traceback", 
+                               f"Failed on test case with status {first_failure['status']} - Score: {score}/{max_score}")
+    else:
+        submission.status = SubmissionStatus.INTERNAL_ERR
+        submission.result = "No test cases found"
+    
+    # Commit submission changes first
+    session.commit()
+    session.refresh(submission)
+    
+    # Update user score and leaderboard
+    try:
+        # Try to run the async update
+        import asyncio
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # If loop is running, create a task
+            asyncio.create_task(
+                update_user_score(session, submission.user_id, submission.problem_id, score)
+            )
+        else:
+            # If no loop is running, run it directly
+            loop.run_until_complete(
+                update_user_score(session, submission.user_id, submission.problem_id, score)
+            )
+    except Exception as e:
+        logger.error(f"Async score update failed: {e}")
+        # Fallback to synchronous update
+        update_user_score_sync(session, submission.user_id, submission.problem_id, score)
+    
+    logger.info(f"Judging completed for submission {submission_id}. Score: {score}/{max_score}, Status: {submission.status}")
 
 @router.post("/{submission_id}/judge")
 async def judge_submission(
@@ -341,3 +379,70 @@ def get_submission_status(
         "result": submission.result,
         "submitted_at": submission.submitted_at
     }
+
+#~~~ FUNCTIONS RELATED TO SCORE CALCULATION ~~~#
+# if all test cases pass -> 100; otherwise -> 0 
+def calculate_scores(test_cases:List[dict], problem_max_score:int) -> int:
+    if not test_cases:
+        return 0
+    
+    all_passed = all(tc.get("status") == "AC" for tc in test_cases)
+
+    if all_passed:
+        return problem_max_score    #maybe different problems have different scores assigned to them :)
+    else:
+        return 0
+
+async def update_user_score(session: Session, user_id: int, problem_id: int, new_score: int):
+    # get existing user score
+    existing_score = session.exec(
+        select(UserScore).where(
+            UserScore.user_id == user_id,
+            UserScore.problem_id == problem_id
+        )
+    ).first()
+    
+    if existing_score:
+        # update if new score is better
+        if new_score > existing_score.best_score:
+            existing_score.best_score = new_score
+            existing_score.last_updated = datetime.utcnow()
+            session.add(existing_score)
+    else:
+        # new user score
+        user_score = UserScore(
+            user_id=user_id,
+            problem_id=problem_id,
+            best_score=new_score
+        )
+        session.add(user_score)
+    
+    session.commit()
+    
+    # broadcast updated leaderboard to all connected clients
+    await leaderboard_service.broadcast_leaderboard(session)
+
+# Add synchronous version for fallback
+def update_user_score_sync(session: Session, user_id: int, problem_id: int, new_score: int):
+    existing_score = session.exec(
+        select(UserScore).where(
+            UserScore.user_id == user_id,
+            UserScore.problem_id == problem_id
+        )
+    ).first()
+    
+    if existing_score:
+        if new_score > existing_score.best_score:
+            existing_score.best_score = new_score
+            existing_score.last_updated = datetime.utcnow()
+            session.add(existing_score)
+    else:
+        user_score = UserScore(
+            user_id=user_id,
+            problem_id=problem_id,
+            best_score=new_score
+        )
+        session.add(user_score)
+    
+    session.commit()
+

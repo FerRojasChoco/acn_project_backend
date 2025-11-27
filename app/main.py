@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.database import engine, create_db_and_tables
 
-from app.api.endpoints import auth, problems, submissions, judge
+from app.api.endpoints import auth, problems, submissions, judge, websocket, leaderboard
 
 from app.models import User, Problem, Submission  
 from scripts.init_db import create_initial_users, create_initial_problems
@@ -22,6 +22,8 @@ app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(problems.router, prefix="/problems", tags=["problems"])
 app.include_router(submissions.router, prefix="/submissions", tags=["submissions"])
 app.include_router(judge.router, prefix="/judge", tags=["judge"])
+app.include_router(websocket.router, tags=["websocket"])
+app.include_router(leaderboard.router, prefix="/leaderboard", tags=["leaderboard"])
 
 @app.on_event("startup")
 def on_startup():
